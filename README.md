@@ -74,7 +74,7 @@ pytest                      # 跑测试
    ```
 4. 点 **Deploy**，几分钟后就有一个公开链接。以后往 `main` 推代码会自动更新。
 
-DeepSeek Key 在 <https://platform.deepseek.com> 申请，按量付费、需要先充值。一份报告大约几千个 token，费用很低，具体以官网价格为准；同一组合有缓存，不会重复扣费。不填 Key 网站也能正常用，只是报告由模板生成。
+DeepSeek Key 在 <https://platform.deepseek.com> 申请，按量付费、需要先充值。默认模型是 `deepseek-flash`，想换成更强的 `deepseek-v4-pro` 可以在 Secrets 里加 `LLM_MODEL`。2026-11-07 实测：一份个人报告约 3 秒、约 2000 个 token（输入约 1300、输出约 600），费用按官网价格换算；同一组合有缓存，不会重复扣费。不填 Key 网站也能正常用，只是报告由模板生成。
 
 `packages.txt` 让 Streamlit Cloud 自动安装中文字体，分享图不会出现方块字。
 

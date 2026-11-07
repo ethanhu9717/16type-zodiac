@@ -15,7 +15,7 @@ from core import quiz
 from core.astro import cusp_note, sun_sign
 from core.card import pair_card, single_card
 from core.knowledge import TYPE_CODES, get_type, quiz_items
-from core.llm import DEFAULT_BASE_URL, DEFAULT_MODEL, LLMConfig
+from core.llm import DEFAULT_BASE_URL, DEFAULT_MODEL, LLMConfig, key_looks_valid
 from core.pairing import Person
 from core.report import generate_pair, generate_single
 
@@ -63,7 +63,7 @@ def _secret(name: str, default: str | None = None) -> str | None:
 
 def llm_config() -> LLMConfig | None:
     key = _secret("DEEPSEEK_API_KEY") or _secret("LLM_API_KEY")
-    if not key:
+    if not key_looks_valid(key):  # 没填，或者还是占位文字
         return None
     return LLMConfig(
         api_key=key,

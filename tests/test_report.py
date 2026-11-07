@@ -116,7 +116,7 @@ def test_chat_json_ok(monkeypatch):
     monkeypatch.setattr(llm.requests, "post", fake_post)
     assert llm.chat_json(CFG, "s", "u") == {"hug": "你好"}
     assert seen["url"] == "https://api.deepseek.com/chat/completions"
-    assert seen["model"] == "deepseek-chat" and seen["auth"] == "Bearer test-key"
+    assert seen["model"] == "deepseek-flash" and seen["auth"] == "Bearer test-key"
 
 
 # ---------- 分享图 ----------
@@ -142,3 +142,26 @@ def test_wrap_keeps_words_and_punctuation():
     assert all(not line.startswith(("，", "。")) for line in lines)
     assert all("INF\n" not in line for line in lines)
     assert wrap("一二三四五六七八九十" * 20, f, 300, max_lines=2)[-1].endswith("…")
+
+
+def test_placeholder_key_falls_back_instead_of_crashing():
+    cfg = LLMConfig(api_key="在这里粘贴你的Key", base_url="http://127.0.0.1:9")
+    with pytest.raises(LLMError):
+        llm.chat_json(cfg, "s", "u")
+    assert generate_single("INFP", "双鱼", cfg)["source"] == "template"
+    assert generate_pair(Person("INFP", "双鱼"), Person("ENTJ", "狮子"), cfg)["source"] == "template"
+
+
+def test_unexpected_error_falls_back(monkeypatch):
+    def boom(cfg, system, user):
+        raise RuntimeError("意外")
+    monkeypatch.setattr("core.report.chat_json", boom)
+    assert generate_single("INFP", "双鱼", CFG)["source"] == "template"
+
+
+def test_key_looks_valid():
+    assert llm.key_looks_valid("sk-abc123")
+    assert not llm.key_looks_valid("在这里粘贴你的Key")
+    assert not llm.key_looks_valid("")
+    assert not llm.key_looks_valid("   ")
+    assert not llm.key_looks_valid(None)
