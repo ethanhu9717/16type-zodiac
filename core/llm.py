@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import requests
 
 DEFAULT_BASE_URL = "https://api.deepseek.com"
-DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_MODEL = "deepseek-flash"  # 2026-11 实测：旧名 deepseek-chat 已映射到这个模型
 
 
 class LLMError(RuntimeError):

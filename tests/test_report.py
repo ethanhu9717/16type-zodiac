@@ -116,7 +116,7 @@ def test_chat_json_ok(monkeypatch):
     monkeypatch.setattr(llm.requests, "post", fake_post)
     assert llm.chat_json(CFG, "s", "u") == {"hug": "你好"}
     assert seen["url"] == "https://api.deepseek.com/chat/completions"
-    assert seen["model"] == "deepseek-chat" and seen["auth"] == "Bearer test-key"
+    assert seen["model"] == "deepseek-flash" and seen["auth"] == "Bearer test-key"
 
 
 # ---------- 分享图 ----------
