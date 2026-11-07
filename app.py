@@ -17,6 +17,7 @@ import streamlit as st
 from core import quiz
 from core.ask import MAX_QUESTION, PAIR_SUGGESTIONS, SINGLE_SUGGESTIONS, ask_pair, ask_single, clean_question
 from core.astro import cusp_note, make_birthday, sun_sign
+from core.cache import SharedCache
 from core.card import pair_card, single_card
 from core.knowledge import TYPE_CODES, get_type, quiz_items
 from core.llm import DEFAULT_BASE_URL, DEFAULT_MODEL, LLMConfig, key_looks_valid
@@ -51,7 +52,7 @@ CSS = """
 .k-张力 {background: #FBE9E2; color: #B0573A;}
 .score {font-size: 2.6rem; font-weight: 700; line-height: 1;}
 .muted {color: #8A7F95; font-size: 0.85rem;}
-.blabel {font-size: 0.875rem; margin-bottom: -0.3rem;}
+.blabel {font-size: 0.875rem; margin-bottom: 0;}
 .sign-badge {padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.7); margin: 4px 0 8px 0;}
 .src {display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 0.7rem;}
 .src .pill {display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;}
@@ -99,31 +100,27 @@ SUGGESTIONS = set(SINGLE_SUGGESTIONS) | set(PAIR_SUGGESTIONS)
 
 
 @st.cache_resource
-def report_store() -> dict:
-    """所有访客共用的报告缓存：同一个组合只调用一次大模型，费用有上限。"""
-    return {}
+def report_store() -> SharedCache:
+    """所有访客共用的报告缓存：同一个组合只调用一次大模型，两个人同时点也只扣一次费。"""
+    return SharedCache()
 
 
 def get_single(type_code: str, sign_key: str) -> dict:
-    store, key = report_store(), ("single", type_code, sign_key)
-    if key not in store:
+    def make():
         cfg = llm_config()
         r = generate_single(type_code, sign_key, cfg)
-        if r["source"] == "ai" or cfg is None:  # AI 偶尔失败时不缓存模板结果，下次再试
-            store[key] = r
-        return r
-    return store[key]
+        return r, r["source"] == "ai" or cfg is None  # AI 偶尔失败时不缓存模板结果，下次再试
+
+    return report_store().get_or_make(("single", type_code, sign_key), make)
 
 
 def get_pair(a: Person, b: Person) -> dict:
-    store, key = report_store(), ("pair", a, b)
-    if key not in store:
+    def make():
         cfg = llm_config()
         r = generate_pair(a, b, cfg)
-        if r["source"] == "ai" or cfg is None:
-            store[key] = r
-        return r
-    return store[key]
+        return r, r["source"] == "ai" or cfg is None
+
+    return report_store().get_or_make(("pair", a, b), make)
 
 
 # ---------- 小组件 ----------
@@ -239,10 +236,7 @@ def ask_answer(scope: str, question: str, ask: Callable[[str], str]) -> str:
     """推荐问题的回答所有访客共用，同一组合只问一次 AI；自己输入的问题不缓存、不保存。"""
     if question not in SUGGESTIONS:
         return ask(question)
-    store, key = report_store(), ("ask", scope, question)
-    if key not in store:
-        store[key] = ask(question)
-    return store[key]
+    return report_store().get_or_make(("ask", scope, question), lambda: (ask(question), True))
 
 
 def ask_block(scope: str, ask: Callable[[str], str], suggestions: tuple[str, ...], placeholder: str) -> None:
