@@ -16,7 +16,7 @@ import streamlit as st
 
 from core import quiz
 from core.ask import MAX_QUESTION, PAIR_SUGGESTIONS, SINGLE_SUGGESTIONS, ask_pair, ask_single, clean_question
-from core.astro import cusp_note, sun_sign
+from core.astro import cusp_note, make_birthday, sun_sign
 from core.card import pair_card, single_card
 from core.knowledge import TYPE_CODES, get_type, quiz_items
 from core.llm import DEFAULT_BASE_URL, DEFAULT_MODEL, LLMConfig, key_looks_valid
@@ -27,6 +27,7 @@ st.set_page_config(page_title="16 型人格 × 星座 · 温柔解读", page_ico
 
 TODAY = dt.date.today()
 MIN_DATE = dt.date(1930, 1, 1)
+DEFAULT_YEAR = 1990  # 生日的年份默认停在 1990 年，不用从今年往回翻
 ELEMENT_ACCENT = {"火": "#D9676A", "土": "#7F9150", "风": "#8572CC", "水": "#4A88B3"}
 
 CSS = """
@@ -50,6 +51,7 @@ CSS = """
 .k-张力 {background: #FBE9E2; color: #B0573A;}
 .score {font-size: 2.6rem; font-weight: 700; line-height: 1;}
 .muted {color: #8A7F95; font-size: 0.85rem;}
+.blabel {font-size: 0.875rem; margin-bottom: -0.3rem;}
 .sign-badge {padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.7); margin: 4px 0 8px 0;}
 .src {display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 0.7rem;}
 .src .pill {display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;}
@@ -144,7 +146,19 @@ def type_label(code: str) -> str:
 
 
 def birthday_input(label: str, key: str):
-    d = st.date_input(label, value=None, min_value=MIN_DATE, max_value=TODAY, key=key, format="YYYY/MM/DD")
+    """年份输入框默认 1990（可以直接改，也可以点加减），月和日从下拉框选；没选完就不算星座。"""
+    st.markdown(f"<div class='blabel'>{esc(label)}<span class='muted'>　年份点一下就能改</span></div>",
+                unsafe_allow_html=True)
+    with st.container(horizontal=True, gap="small", wrap=False):
+        year = st.number_input(f"{label}·年", min_value=MIN_DATE.year, max_value=TODAY.year, value=DEFAULT_YEAR,
+                               step=1, key=f"{key}_y", label_visibility="collapsed", width=120)
+        month = st.selectbox(f"{label}·月", range(1, 13), index=None, placeholder="月", key=f"{key}_m",
+                             format_func=lambda v: f"{v} 月", label_visibility="collapsed")
+        day = st.selectbox(f"{label}·日", range(1, 32), index=None, placeholder="日", key=f"{key}_d",
+                           format_func=lambda v: f"{v} 日", label_visibility="collapsed")
+    d, problem = make_birthday(year, month, day, TODAY)
+    if problem:
+        st.warning(problem)
     if d is None:
         return None, None
     sign = sun_sign(d)

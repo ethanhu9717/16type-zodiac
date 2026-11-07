@@ -137,3 +137,19 @@ def test_quiz_mixed():
 def test_quiz_rejects_bad_value():
     with pytest.raises(ValueError):
         quiz.score({1: 9})
+
+
+def test_make_birthday():
+    import datetime as dt
+
+    from core.astro import make_birthday
+
+    today = dt.date(2026, 11, 7)
+    assert make_birthday(1990, None, 5, today) == (None, None)
+    assert make_birthday(1990, 3, None, today) == (None, None)
+    assert make_birthday(1990, 3, 5, today) == (dt.date(1990, 3, 5), None)
+    assert make_birthday(2000, 2, 29, today) == (dt.date(2000, 2, 29), None)
+    d, msg = make_birthday(1990, 2, 29, today)
+    assert d is None and "1990 年 2 月没有 29 日" in msg
+    d, msg = make_birthday(2026, 12, 1, today)
+    assert d is None and "还没到" in msg
