@@ -45,7 +45,8 @@ def parse_json(text: str) -> dict:
 
 def key_looks_valid(key: str | None) -> bool:
     """Key 只能是英文字母、数字和符号；还是占位文字或含中文时当作没配置。"""
-    return bool(key) and key.strip().isascii() and " " not in key.strip()
+    k = (key or "").strip()
+    return bool(k) and k.isascii() and " " not in k
 
 
 def chat_json(cfg: LLMConfig, system: str, user: str) -> dict:

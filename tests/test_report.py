@@ -163,4 +163,5 @@ def test_key_looks_valid():
     assert llm.key_looks_valid("sk-abc123")
     assert not llm.key_looks_valid("在这里粘贴你的Key")
     assert not llm.key_looks_valid("")
+    assert not llm.key_looks_valid("   ")
     assert not llm.key_looks_valid(None)
