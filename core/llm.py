@@ -43,7 +43,14 @@ def parse_json(text: str) -> dict:
     return data
 
 
+def key_looks_valid(key: str | None) -> bool:
+    """Key 只能是英文字母、数字和符号；还是占位文字或含中文时当作没配置。"""
+    return bool(key) and key.strip().isascii() and " " not in key.strip()
+
+
 def chat_json(cfg: LLMConfig, system: str, user: str) -> dict:
+    if not key_looks_valid(cfg.api_key):
+        raise LLMError("API Key 格式不对（可能还是占位文字）")
     url = cfg.base_url.rstrip("/") + "/chat/completions"
     payload = {
         "model": cfg.model,
@@ -58,11 +65,11 @@ def chat_json(cfg: LLMConfig, system: str, user: str) -> dict:
     try:
         resp = requests.post(
             url,
-            headers={"Authorization": f"Bearer {cfg.api_key}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {cfg.api_key.strip()}", "Content-Type": "application/json"},
             json=payload,
             timeout=(10, cfg.timeout),
         )
-    except requests.RequestException as e:
+    except (requests.RequestException, UnicodeError, ValueError) as e:
         raise LLMError(f"请求失败：{type(e).__name__}") from e
     if resp.status_code != 200:
         raise LLMError(f"接口返回 HTTP {resp.status_code}")

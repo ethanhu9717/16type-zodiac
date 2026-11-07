@@ -207,6 +207,8 @@ def generate_single(type_code: str, sign_key: str, cfg: LLMConfig | None = None)
             report, source = merge_single(chat_json(cfg, SYSTEM_PROMPT, single_user_prompt(b)), fb), "ai"
         except LLMError as e:
             log.warning("大模型生成失败，改用模板报告：%s", e)
+        except Exception:  # 兜底：AI 出任何意外都不能让网站报错
+            log.exception("大模型调用出现意外错误，改用模板报告")
     return {
         **report,
         "label": b["label"],
@@ -229,6 +231,8 @@ def generate_pair(a: Person, b: Person, cfg: LLMConfig | None = None) -> dict:
             report, source = merge_pair(chat_json(cfg, SYSTEM_PROMPT, pair_user_prompt(p)), fb), "ai"
         except LLMError as e:
             log.warning("大模型生成失败，改用模板报告：%s", e)
+        except Exception:  # 兜底：AI 出任何意外都不能让网站报错
+            log.exception("大模型调用出现意外错误，改用模板报告")
     return {
         **report,
         "score": p["score"],
