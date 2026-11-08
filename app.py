@@ -187,6 +187,22 @@ def type_label(code: str) -> str:
     return f"{code} · {get_type(code)['nickname']}"
 
 
+# 年份框是 number_input，Streamlit 没给它 autocomplete 参数，Safari 会把它当成生日栏，
+# 在框里显示通讯录自动填充的按钮、弹出列表。这里给它补上 autocomplete="off"（月、日两个下拉框自带）。
+NO_AUTOFILL_JS = """
+<script>
+(() => {
+  if (window.__noAutofill) return;
+  window.__noAutofill = true;
+  const fix = () => document.querySelectorAll('[data-testid="stNumberInput"] input:not([autocomplete])')
+    .forEach(el => el.setAttribute("autocomplete", "off"));
+  fix();
+  new MutationObserver(fix).observe(document.body, {childList: true, subtree: true});
+})();
+</script>
+"""
+
+
 def birthday_input(label: str, key: str):
     """年份输入框默认 1990（可以直接改，也可以点加减），月和日从下拉框选；没选完就不算星座。"""
     st.markdown(f"<div class='blabel'>{esc(label)}<span class='muted'>　年份点一下就能改</span></div>",
@@ -481,6 +497,7 @@ def main() -> None:
             + "- 双人配对的「默契指数」只是一个好玩的参考，不代表两个人合不合适。"
         )
     st.caption("仅供娱乐，不构成任何专业建议。生日只用来计算星座，不会被保存。右上角 ⋮ 可以切换浅色 / 深色。")
+    st.html(NO_AUTOFILL_JS, unsafe_allow_javascript=True)
 
 
 main()
