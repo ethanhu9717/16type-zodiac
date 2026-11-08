@@ -26,7 +26,7 @@ from core.pairing import Person
 from core.report import generate_pair, generate_single
 
 ICON = Path(__file__).parent / "assets" / "icon.png"  # 标签页图标（原创，scripts/make_icons.py 生成）
-st.set_page_config(page_title="16 型人格 × 星座 · 温柔解读", page_icon=str(ICON) if ICON.exists() else "🌙",
+st.set_page_config(page_title="16 型人格 × 星座", page_icon=str(ICON) if ICON.exists() else "🌙",
                    layout="centered")
 
 TODAY = dt.date.today()
