@@ -1,10 +1,18 @@
+# 浅色和深色两套主题。默认跟随访客手机或电脑的设置，右上角菜单里也可以手动切换。
 [theme]
-base = "light"
+font = "sans serif"
+
+[theme.light]
 primaryColor = "#C27A9A"
 backgroundColor = "#FBF6F4"
 secondaryBackgroundColor = "#F3ECF1"
 textColor = "#3F3A4A"
-font = "sans serif"
+
+[theme.dark]
+primaryColor = "#C27A9A"
+backgroundColor = "#141218"
+secondaryBackgroundColor = "#25212C"
+textColor = "#EEE8F2"
 
 [server]
 headless = true

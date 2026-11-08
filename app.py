@@ -26,44 +26,86 @@ from core.pairing import Person
 from core.report import generate_pair, generate_single
 
 ICON = Path(__file__).parent / "assets" / "icon.png"  # 标签页图标（原创，scripts/make_icons.py 生成）
+# 菜单里放一条「关于」，右上角的菜单才会出现；菜单里同时有浅色 / 深色的切换（主题在 .streamlit/config.toml）
 st.set_page_config(page_title="16 型人格 × 星座", page_icon=str(ICON) if ICON.exists() else "🌙",
-                   layout="centered")
+                   layout="centered",
+                   menu_items={"About": "**16 型人格 × 星座**\n\n把两套性格语言放在一起，温柔地读懂你自己。仅供娱乐参考。"})
 
 TODAY = dt.date.today()
 MIN_DATE = dt.date(1930, 1, 1)
 DEFAULT_YEAR = 1990  # 生日的年份默认停在 1990 年，不用从今年往回翻
-ELEMENT_ACCENT = {"火": "#D9676A", "土": "#7F9150", "风": "#8572CC", "水": "#4A88B3"}
+# 星座元素的强调色：(class 名, 浅色主题, 深色主题)。深色主题用亮一点的同色系，深底上才看得清。
+ELEMENT_ACCENT = {
+    "火": ("fire", "#D9676A", "#F08C8E"),
+    "土": ("earth", "#7F9150", "#AFC27D"),
+    "风": ("air", "#8572CC", "#AE9EEC"),
+    "水": ("water", "#4A88B3", "#7DB7E0"),
+}
 
+
+def accent_class(element: str) -> str:
+    return f"acc-{ELEMENT_ACCENT[element][0]}"
+
+
+def accent_rules() -> str:
+    """强调色的 CSS。前面加 .stApp 是为了压过 Streamlit 给标题设的 color: inherit。"""
+    plain = "".join(f".stApp .acc-{name} {{color: {light};}}\n" for name, light, _ in ELEMENT_ACCENT.values())
+    themed = "".join(f".stApp .acc-{name} {{color: light-dark({light}, {dark});}}\n"
+                     for name, light, dark in ELEMENT_ACCENT.values())
+    return f"{plain}@supports (color: light-dark(#000, #fff)) {{\n{themed}}}\n"
+
+
+# 自己画的卡片、标签用这些颜色变量。Streamlit 会按当前主题给页面设好 color-scheme，
+# light-dark() 跟着它在浅色 / 深色之间切换，切换主题时不用刷新页面。
+# 老浏览器不认识 light-dark()，就一直用第一组浅色卡片（深色主题下也看得清）。
 CSS = """
 <style>
+.stApp {
+  --ink: #3F3A4A; --muted: #8A7F95; --card: rgba(255,255,255,0.86); --card-line: transparent;
+  --shadow: rgba(120,100,140,0.08); --chip: #fff; --badge: rgba(255,255,255,0.7);
+  --ok-bg: #E5F2E1; --ok: #4D7A3E; --warn-bg: #FBE9E2; --warn: #B0573A;
+  --ai-a: #F3E3EE; --ai-b: #E6E3F7; --ai: #8E4F78; --tpl-bg: #EFEDF2; --tpl: #7A7186;
+}
+@supports (color: light-dark(#000, #fff)) {
+  .stApp {
+    --ink: light-dark(#3F3A4A, #EEE8F2); --muted: light-dark(#8A7F95, #A99FB4);
+    --card: light-dark(rgba(255,255,255,0.86), #1F1B25); --card-line: light-dark(transparent, #2E2936);
+    --shadow: light-dark(rgba(120,100,140,0.08), rgba(0,0,0,0.35));
+    --chip: light-dark(#fff, #1A171F); --badge: light-dark(rgba(255,255,255,0.7), #1F1B25);
+    --ok-bg: light-dark(#E5F2E1, #213326); --ok: light-dark(#4D7A3E, #9CCB8B);
+    --warn-bg: light-dark(#FBE9E2, #3A2420); --warn: light-dark(#B0573A, #EBA58C);
+    --ai-a: light-dark(#F3E3EE, #3B2537); --ai-b: light-dark(#E6E3F7, #2B2944); --ai: light-dark(#8E4F78, #EBA9CF);
+    --tpl-bg: light-dark(#EFEDF2, #2A2631); --tpl: light-dark(#7A7186, #B8AEC3);
+  }
+}
 .block-container {max-width: 760px; padding-top: 2.2rem; padding-bottom: 4rem;}
 .hero {text-align: center; margin-bottom: 0.6rem;}
-.hero .title {font-size: 1.9rem; font-weight: 700; letter-spacing: 0.02em; color: #3F3A4A;}
-.hero .sub {color: #8A7F95; margin-top: 0.2rem;}
-.rcard {background: rgba(255,255,255,0.86); border-radius: 18px; padding: 18px 20px; margin: 14px 0;
-        box-shadow: 0 2px 14px rgba(120, 100, 140, 0.08); color: #3F3A4A; line-height: 1.75;}
+.hero .title {font-size: 1.9rem; font-weight: 700; letter-spacing: 0.02em;}
+.hero .sub {color: var(--muted); margin-top: 0.2rem;}
+.rcard {background: var(--card); border: 1px solid var(--card-line); border-radius: 18px; padding: 18px 20px;
+        margin: 14px 0; box-shadow: 0 2px 14px var(--shadow); color: var(--ink); line-height: 1.75;}
 .rcard h4 {margin: 0 0 0.5rem 0; font-size: 1.05rem;}
 .rcard p {margin: 0.2rem 0;}
 .rcard ul {margin: 0.2rem 0 0.2rem 1.1rem; padding: 0;}
 .headline .label {font-size: 1.7rem; font-weight: 700;}
 .headline .nick {font-size: 1.25rem; font-weight: 600; margin: 0.1rem 0 0.4rem 0;}
 .tag {display: inline-block; padding: 1px 12px; border-radius: 999px; border: 1.5px solid; margin: 6px 6px 0 0;
-      font-size: 0.85rem; background: #fff;}
+      font-size: 0.85rem; background: var(--chip);}
 .sig {display: flex; gap: 8px; margin: 6px 0; font-size: 0.95rem;}
 .sig .kind {flex: none; font-size: 0.75rem; padding: 1px 8px; border-radius: 6px; height: fit-content; margin-top: 4px;}
-.k-印证 {background: #E5F2E1; color: #4D7A3E;}
-.k-张力 {background: #FBE9E2; color: #B0573A;}
+.k-印证 {background: var(--ok-bg); color: var(--ok);}
+.k-张力 {background: var(--warn-bg); color: var(--warn);}
 .score {font-size: 2.6rem; font-weight: 700; line-height: 1;}
-.muted {color: #8A7F95; font-size: 0.85rem;}
+.muted {color: var(--muted); font-size: 0.85rem;}
 .blabel {font-size: 0.875rem; margin-bottom: 0;}
-.sign-badge {padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.7); margin: 4px 0 8px 0;}
+.sign-badge {padding: 10px 14px; border-radius: 12px; background: var(--badge); border: 1px solid var(--card-line);
+             margin: 4px 0 8px 0;}
 .src {display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 0.7rem;}
 .src .pill {display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;}
-.src .ai {background: linear-gradient(90deg, #F3E3EE, #E6E3F7); color: #8E4F78;}
-.src .tpl {background: #EFEDF2; color: #7A7186;}
-.src .note {color: #8A7F95; font-size: 0.8rem;}
-</style>
-"""
+.src .ai {background: linear-gradient(90deg, var(--ai-a), var(--ai-b)); color: var(--ai);}
+.src .tpl {background: var(--tpl-bg); color: var(--tpl);}
+.src .note {color: var(--muted); font-size: 0.8rem;}
+""" + accent_rules() + "</style>\n"
 
 
 # ---------- 配置 ----------
@@ -162,9 +204,9 @@ def birthday_input(label: str, key: str):
     if d is None:
         return None, None
     sign = sun_sign(d)
-    accent = ELEMENT_ACCENT[sign["element"]]
+    accent = accent_class(sign["element"])
     st.markdown(
-        f"<div class='sign-badge'>星座：<b style='color:{accent}'>{esc(sign['name'])} {sign['symbol']}</b>"
+        f"<div class='sign-badge'>星座：<b class='{accent}'>{esc(sign['name'])} {sign['symbol']}</b>"
         f"　{esc(sign['element'])}象 · {esc(sign['modality'])}星座 · {esc(sign['dates'])}</div>",
         unsafe_allow_html=True,
     )
@@ -298,11 +340,11 @@ def share_block(png: bytes, filename: str) -> None:
 # ---------- 报告展示 ----------
 
 def render_single(r: dict) -> None:
-    accent = ELEMENT_ACCENT[r["sign"]["element"]]
-    tags = "".join(f"<span class='tag' style='color:{accent};border-color:{accent}'>{esc(k)}</span>" for k in r["keywords"])
+    accent = accent_class(r["sign"]["element"])
+    tags = "".join(f"<span class='tag {accent}'>{esc(k)}</span>" for k in r["keywords"])
     st.markdown(
         f"<div class='rcard headline'>{source_badge(r['source'])}<div class='label'>{esc(r['label'])}</div>"
-        f"<div class='nick' style='color:{accent}'>{esc(r['nickname'])}</div>"
+        f"<div class='nick {accent}'>{esc(r['nickname'])}</div>"
         f"<p>{esc(r['one_liner'])}</p>{tags}</div>",
         unsafe_allow_html=True,
     )
@@ -311,51 +353,51 @@ def render_single(r: dict) -> None:
         for s in r["signals"]
     )
     st.markdown(
-        f"<div class='rcard'><h4 style='color:{accent}'>性格核心</h4><p>{esc(r['core'])}</p>"
+        f"<div class='rcard'><h4 class='{accent}'>性格核心</h4><p>{esc(r['core'])}</p>"
         f"<p class='muted' style='margin-top:0.8rem'>两套体系的对照</p>{sigs}</div>",
         unsafe_allow_html=True,
     )
     strengths = "".join(f"<li>{esc(x)}</li>" for x in r["strengths"])
     blindspots = "".join(f"<li>{esc(x)}</li>" for x in r["blindspots"])
     st.markdown(
-        f"<div class='rcard'><h4 style='color:{accent}'>优势与盲点</h4>"
+        f"<div class='rcard'><h4 class='{accent}'>优势与盲点</h4>"
         f"<p><b>你的闪光点</b></p><ul>{strengths}</ul>"
         f"<p style='margin-top:0.6rem'><b>可以温柔对待的地方</b></p><ul>{blindspots}</ul></div>",
         unsafe_allow_html=True,
     )
     for title, key in (("恋爱与人际", "love"), ("工作与学习", "work")):
-        st.markdown(f"<div class='rcard'><h4 style='color:{accent}'>{title}</h4><p>{esc(r[key])}</p></div>",
+        st.markdown(f"<div class='rcard'><h4 class='{accent}'>{title}</h4><p>{esc(r[key])}</p></div>",
                     unsafe_allow_html=True)
     matches = "".join(f"<li><b>{esc(m['combo'])}</b>：{esc(m['reason'])}</li>" for m in r["matches"])
-    st.markdown(f"<div class='rcard'><h4 style='color:{accent}'>最合拍的组合</h4><ul>{matches}</ul></div>",
+    st.markdown(f"<div class='rcard'><h4 class='{accent}'>最合拍的组合</h4><ul>{matches}</ul></div>",
                 unsafe_allow_html=True)
-    st.markdown(f"<div class='rcard' style='text-align:center'><h4 style='color:{accent}'>写给你</h4>"
+    st.markdown(f"<div class='rcard' style='text-align:center'><h4 class='{accent}'>写给你</h4>"
                 f"<p>「{esc(r['hug'])}」</p></div>", unsafe_allow_html=True)
     footnote(r["source"])
 
 
 def render_pair(r: dict) -> None:
-    accent = ELEMENT_ACCENT[r["a"]["element"]]
+    accent = accent_class(r["a"]["element"])
     st.markdown(
         f"<div class='rcard headline'>{source_badge(r['source'])}"
         f"<p class='muted'>你{esc(r['a']['label'])}（{esc(r['a']['nickname'])}）<br>"
         f"TA　{esc(r['b']['label'])}（{esc(r['b']['nickname'])}）</p>"
-        f"<div class='label' style='color:{accent}'>{esc(r['title'])}</div>"
-        f"<p>默契指数 <span class='score' style='color:{accent}'>{r['score']}</span></p>"
+        f"<div class='label {accent}'>{esc(r['title'])}</div>"
+        f"<p>默契指数 <span class='score {accent}'>{r['score']}</span></p>"
         f"<p>{esc(r['one_liner'])}</p></div>",
         unsafe_allow_html=True,
     )
-    st.markdown(f"<div class='rcard'><h4 style='color:{accent}'>你们的化学反应</h4><p>{esc(r['chemistry'])}</p></div>",
+    st.markdown(f"<div class='rcard'><h4 class='{accent}'>你们的化学反应</h4><p>{esc(r['chemistry'])}</p></div>",
                 unsafe_allow_html=True)
     hl = "".join(f"<li>{esc(x)}</li>" for x in r["highlights"])
-    st.markdown(f"<div class='rcard'><h4 style='color:{accent}'>相处亮点</h4><ul>{hl}</ul></div>",
+    st.markdown(f"<div class='rcard'><h4 class='{accent}'>相处亮点</h4><ul>{hl}</ul></div>",
                 unsafe_allow_html=True)
     fr = "".join(f"<li><b>{esc(x['point'])}</b><br>小建议：{esc(x['tip'])}</li>" for x in r["frictions"])
-    st.markdown(f"<div class='rcard'><h4 style='color:{accent}'>可能的小摩擦</h4><ul>{fr}</ul></div>",
+    st.markdown(f"<div class='rcard'><h4 class='{accent}'>可能的小摩擦</h4><ul>{fr}</ul></div>",
                 unsafe_allow_html=True)
-    st.markdown(f"<div class='rcard'><h4 style='color:{accent}'>适合你们的相处方式</h4><p>{esc(r['date_idea'])}</p></div>",
+    st.markdown(f"<div class='rcard'><h4 class='{accent}'>适合你们的相处方式</h4><p>{esc(r['date_idea'])}</p></div>",
                 unsafe_allow_html=True)
-    st.markdown(f"<div class='rcard' style='text-align:center'><h4 style='color:{accent}'>写给你们</h4>"
+    st.markdown(f"<div class='rcard' style='text-align:center'><h4 class='{accent}'>写给你们</h4>"
                 f"<p>「{esc(r['hug'])}」</p></div>", unsafe_allow_html=True)
     footnote(r["source"])
 
@@ -438,7 +480,7 @@ def main() -> None:
             + (f"- 问问 AI：AI 结合你的组合回答问题，每次最多问 {ASK_LIMIT} 个；问题不会被保存。\n" if ASK_LIMIT else "")
             + "- 双人配对的「默契指数」只是一个好玩的参考，不代表两个人合不合适。"
         )
-    st.caption("仅供娱乐，不构成任何专业建议。生日只用来计算星座，不会被保存。")
+    st.caption("仅供娱乐，不构成任何专业建议。生日只用来计算星座，不会被保存。右上角 ⋮ 可以切换浅色 / 深色。")
 
 
 main()
