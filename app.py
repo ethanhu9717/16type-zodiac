@@ -33,7 +33,7 @@ st.set_page_config(page_title="16 型人格 × 星座", page_icon=str(ICON) if I
 
 TODAY = dt.date.today()
 MIN_DATE = dt.date(1930, 1, 1)
-DEFAULT_YEAR = 1990  # 生日的年份默认停在 1990 年，不用从今年往回翻
+DEFAULT_YEAR = 1990  # 生日的年份默认选 1990 年，打开列表也停在这里，不用从今年往回翻
 # 星座元素的强调色：(class 名, 浅色主题, 深色主题)。深色主题用亮一点的同色系，深底上才看得清。
 ELEMENT_ACCENT = {
     "火": ("fire", "#D9676A", "#F08C8E"),
@@ -98,6 +98,9 @@ CSS = """
 .score {font-size: 2.6rem; font-weight: 700; line-height: 1;}
 .muted {color: var(--muted); font-size: 0.85rem;}
 .blabel {font-size: 0.875rem; margin-bottom: 0;}
+/* 生日的月、日下拉框不显示清除按钮（换一个选就行），手机上「12 月」「31 日」才不会被挤掉一半 */
+.stApp input[aria-label$="·月"] + button[aria-label="Clear value"],
+.stApp input[aria-label$="·日"] + button[aria-label="Clear value"] {display: none;}
 .sign-badge {padding: 10px 14px; border-radius: 12px; background: var(--badge); border: 1px solid var(--card-line);
              margin: 4px 0 8px 0;}
 .src {display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 0.7rem;}
@@ -187,29 +190,38 @@ def type_label(code: str) -> str:
     return f"{code} · {get_type(code)['nickname']}"
 
 
-# 年份框是 number_input，Streamlit 没给它 autocomplete 参数，Safari 会把它当成生日栏，
-# 在框里显示通讯录自动填充的按钮、弹出列表。这里给它补上 autocomplete="off"（月、日两个下拉框自带）。
-NO_AUTOFILL_JS = """
+YEARS = list(range(TODAY.year, MIN_DATE.year - 1, -1))  # 年份下拉框：新的年份在上面
+
+# Streamlit 的下拉框打开时总是停在最上面（年份就是今年），要往下翻很久才到 1990。
+# 这段脚本在年份列表打开时，把它滚到当前选中的年份（默认 1990），放在列表中间。
+YEAR_LIST_JS = """
 <script>
 (() => {
-  if (window.__noAutofill) return;
-  window.__noAutofill = true;
-  const fix = () => document.querySelectorAll('[data-testid="stNumberInput"] input:not([autocomplete])')
-    .forEach(el => el.setAttribute("autocomplete", "off"));
-  fix();
-  new MutationObserver(fix).observe(document.body, {childList: true, subtree: true});
+  if (window.__yearList) return;
+  window.__yearList = true;
+  const done = new WeakSet();
+  const center = () => document.querySelectorAll('[role="listbox"][aria-label$="·年"]').forEach(lb => {
+    if (done.has(lb)) return;
+    const sel = lb.querySelector('[role="option"][aria-selected="true"]');
+    if (!sel) return;
+    done.add(lb);
+    const row = sel.parentElement;  // 虚拟列表里每一行外面包着一个绝对定位的 div
+    requestAnimationFrame(() => {
+      lb.scrollTop = Math.max(0, row.offsetTop - (lb.clientHeight - row.offsetHeight) / 2);
+    });
+  });
+  new MutationObserver(center).observe(document.body, {childList: true, subtree: true});
 })();
 </script>
 """
 
 
 def birthday_input(label: str, key: str):
-    """年份输入框默认 1990（可以直接改，也可以点加减），月和日从下拉框选；没选完就不算星座。"""
-    st.markdown(f"<div class='blabel'>{esc(label)}<span class='muted'>　年份点一下就能改</span></div>",
-                unsafe_allow_html=True)
+    """年、月、日三个下拉框；年份默认 1990，打开就停在 1990 附近。月和日没选完就不算星座。"""
+    st.markdown(f"<div class='blabel'>{esc(label)}</div>", unsafe_allow_html=True)
     with st.container(horizontal=True, gap="small", wrap=False):
-        year = st.number_input(f"{label}·年", min_value=MIN_DATE.year, max_value=TODAY.year, value=DEFAULT_YEAR,
-                               step=1, key=f"{key}_y", label_visibility="collapsed", width=120)
+        year = st.selectbox(f"{label}·年", YEARS, index=YEARS.index(DEFAULT_YEAR), key=f"{key}_y",
+                            format_func=lambda v: f"{v} 年", label_visibility="collapsed")
         month = st.selectbox(f"{label}·月", range(1, 13), index=None, placeholder="月", key=f"{key}_m",
                              format_func=lambda v: f"{v} 月", label_visibility="collapsed")
         day = st.selectbox(f"{label}·日", range(1, 32), index=None, placeholder="日", key=f"{key}_d",
@@ -497,7 +509,7 @@ def main() -> None:
             + "- 双人配对的「默契指数」只是一个好玩的参考，不代表两个人合不合适。"
         )
     st.caption("仅供娱乐，不构成任何专业建议。生日只用来计算星座，不会被保存。右上角 ⋮ 可以切换浅色 / 深色。")
-    st.html(NO_AUTOFILL_JS, unsafe_allow_javascript=True)
+    st.html(YEAR_LIST_JS, unsafe_allow_javascript=True)
 
 
 main()
