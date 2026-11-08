@@ -29,5 +29,18 @@ def cusp_note(date: dt.date) -> str | None:
     return None
 
 
+def make_birthday(year: int, month: int | None, day: int | None, today: dt.date | None = None) -> tuple[dt.date | None, str | None]:
+    """年 / 月 / 日三个下拉框 → 日期。还没选完返回 (None, None)；日期不存在或在未来时返回 (None, 提示)。"""
+    if month is None or day is None:
+        return None, None
+    try:
+        date = dt.date(year, month, day)
+    except ValueError:
+        return None, f"{year} 年 {month} 月没有 {day} 日，换一天吧。"
+    if date > (today or dt.date.today()):
+        return None, "这一天还没到哦，再看看年份？"
+    return date, None
+
+
 def all_sign_keys() -> tuple[str, ...]:
     return SIGN_KEYS

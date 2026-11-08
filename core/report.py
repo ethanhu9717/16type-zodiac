@@ -72,7 +72,7 @@ def single_user_prompt(b: dict) -> str:
     )
 
 
-def pair_user_prompt(p: dict) -> str:
+def _prompt_bundle_pair(p: dict) -> dict:
     def person(x: dict) -> dict:
         t, s = x["type"], x["sign"]
         return {
@@ -82,7 +82,7 @@ def pair_user_prompt(p: dict) -> str:
             "sign": {k: s[k] for k in ("name", "element", "modality", "keywords", "love")},
         }
 
-    data = json.dumps({
+    return {
         "你": person(p["a"]),
         "TA": person(p["b"]),
         "element_pair": p["element_pair"],
@@ -90,7 +90,11 @@ def pair_user_prompt(p: dict) -> str:
         "highlights": p["highlights"],
         "frictions": p["frictions"],
         "date_idea": p["date_idea"],
-    }, ensure_ascii=False, indent=1)
+    }
+
+
+def pair_user_prompt(p: dict) -> str:
+    data = json.dumps(_prompt_bundle_pair(p), ensure_ascii=False, indent=1)
     return (
         f"请根据下面的【资料包】，写一份双人配对报告。用「你」称呼第一个人，用「TA」称呼第二个人，"
         f"也可以用「你们」。默契指数已经算好，不要改动，也不要在文字里写具体分数。\n\n"
