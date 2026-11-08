@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 
 from core import llm
-from core.card import H, W, pair_card, single_card, wrap, font
+from core.card import H, W, footer_text, pair_card, single_card, wrap, font
 from core.knowledge import SIGN_KEYS, TYPE_CODES
 from core.llm import LLMConfig, LLMError, parse_json
 from core.pairing import Person
@@ -128,6 +128,12 @@ def test_cards_render():
     p = generate_pair(Person("INFP", "双鱼"), Person("ENTJ", "狮子"))
     img = Image.open(io.BytesIO(pair_card(p)))
     assert img.size == (1080, 1440)
+
+
+def test_card_footer_only_says_ai_for_ai_reports():
+    assert footer_text("ai", None) == "由 AI 生成，仅供娱乐"
+    assert footer_text("template", "x.streamlit.app") == "仅供娱乐参考  ·  x.streamlit.app"
+    assert "AI" not in footer_text(generate_single("INFP", "双鱼")["source"], None)  # 没有 Key 时是资料库报告
 
 
 def test_long_text_is_truncated_on_card():

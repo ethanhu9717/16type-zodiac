@@ -132,6 +132,16 @@ def llm_config() -> LLMConfig | None:
     )
 
 
+def report_ai() -> bool:
+    """报告要不要让 AI 写。默认不用，直接用资料库里写好的文字；Secrets 里写 REPORT_AI = true 才让 AI 写。"""
+    return str(_secret("REPORT_AI", "false")).strip().lower() in ("1", "true", "yes", "on")
+
+
+def report_config() -> LLMConfig | None:
+    """写报告用的 AI 配置，报告不用 AI 时是 None。「问问 AI」不受影响，照常用 llm_config()。"""
+    return llm_config() if report_ai() else None
+
+
 SITE_URL = _secret("SITE_URL")
 log = logging.getLogger("app")
 
@@ -154,21 +164,24 @@ def report_store() -> SharedCache:
 
 
 def get_single(type_code: str, sign_key: str) -> dict:
+    cfg = report_config()
+
     def make():
-        cfg = llm_config()
         r = generate_single(type_code, sign_key, cfg)
         return r, r["source"] == "ai" or cfg is None  # AI 偶尔失败时不缓存模板结果，下次再试
 
-    return report_store().get_or_make(("single", type_code, sign_key), make)
+    # key 里带上「用不用 AI」，切换 REPORT_AI 以后不会拿到另一种方式的旧报告
+    return report_store().get_or_make(("single", type_code, sign_key, cfg is not None), make)
 
 
 def get_pair(a: Person, b: Person) -> dict:
+    cfg = report_config()
+
     def make():
-        cfg = llm_config()
         r = generate_pair(a, b, cfg)
         return r, r["source"] == "ai" or cfg is None
 
-    return report_store().get_or_make(("pair", a, b), make)
+    return report_store().get_or_make(("pair", a, b, cfg is not None), make)
 
 
 # ---------- 小组件 ----------
@@ -182,8 +195,8 @@ def source_badge(source: str) -> str:
     if source == "ai":
         return ("<div class='src'><span class='pill ai'>✨ AI 解读</span>"
                 "<span class='note'>下面的文字由 AI 根据资料库为你写成</span></div>")
-    return ("<div class='src'><span class='pill tpl'>📖 资料库解读</span>"
-            "<span class='note'>AI 暂时不可用，先用资料库为你拼出这份报告</span></div>")
+    note = "AI 暂时不可用，先用资料库为你拼出这份报告" if report_config() else "下面的文字来自我们自己写的资料库"
+    return f"<div class='src'><span class='pill tpl'>📖 资料库解读</span><span class='note'>{note}</span></div>"
 
 
 def type_label(code: str) -> str:
@@ -296,8 +309,10 @@ def type_picker(key: str, allow_quiz: bool) -> str | None:
 def footnote(source: str) -> None:
     if source == "ai":
         st.caption("本报告由 AI 根据资料库生成，仅供娱乐参考。")
-    else:
+    elif report_config():
         st.caption("本报告根据资料库自动生成（AI 暂时不可用），仅供娱乐参考。")
+    else:
+        st.caption("本报告根据资料库生成，仅供娱乐参考。")
 
 
 def md_escape(text: str) -> str:
@@ -436,7 +451,7 @@ def single_tab() -> None:
     _, sign = birthday_input("你的生日（公历）", key="me_birthday")
     code = type_picker("me", allow_quiz=True)
     ready = bool(sign and code)
-    ai_on = llm_config() is not None
+    ai_on = report_config() is not None
     label = "生成我的 AI 解读" if ai_on else "生成我的报告"
     if st.button(label, type="primary", width="stretch", disabled=not ready, key="go_single"):
         with st.spinner("AI 正在为你写解读，大约 10 秒…" if ai_on else "正在为你生成报告…"):
@@ -468,7 +483,7 @@ def pair_tab() -> None:
         code_b = type_picker("b", allow_quiz=False)
     ready = bool(sign_a and code_a and sign_b and code_b)
     if st.button("看看我们的默契", type="primary", width="stretch", disabled=not ready, key="go_pair"):
-        with st.spinner("AI 正在为你们写配对解读，大约 10 秒…" if llm_config() else "正在为你们生成配对报告…"):
+        with st.spinner("AI 正在为你们写配对解读，大约 10 秒…" if report_config() else "正在为你们生成配对报告…"):
             a, b = Person(code_a, sign_a["key"]), Person(code_b, sign_b["key"])
             r = get_pair(a, b)
             st.session_state["pair"] = {"report": r, "png": pair_card(r, site=SITE_URL), "people": (a, b)}
@@ -488,7 +503,7 @@ def pair_tab() -> None:
 
 def main() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
-    sub = "把两套性格语言放在一起，让 AI 温柔地读懂你" if llm_config() else "把两套性格语言放在一起，温柔地读懂你自己"
+    sub = "把两套性格语言放在一起，让 AI 温柔地读懂你" if report_config() else "把两套性格语言放在一起，温柔地读懂你自己"
     st.markdown(
         f"<div class='hero'><div class='title'>🌙 16 型人格 × 星座</div><div class='sub'>{sub}</div></div>",
         unsafe_allow_html=True,
@@ -504,7 +519,8 @@ def main() -> None:
         st.markdown(
             "- 星座：按公历生日计算太阳星座。\n"
             "- 组合规则：把 16 型人格的四个维度和星座的元素、模式一一对照，找出互相印证和有张力的地方。\n"
-            "- 报告：资料库里的文字都是我们自己写的，AI 只负责把这些依据写成更好读的报告。\n"
+            + ("- 报告：资料库里的文字都是我们自己写的，AI 只负责把这些依据写成更好读的报告。\n" if report_config()
+               else "- 报告：直接用资料库里我们自己写的文字整理而成。\n")
             + (f"- 问问 AI：AI 结合你的组合回答问题，每次最多问 {ASK_LIMIT} 个；问题不会被保存。\n" if ASK_LIMIT else "")
             + "- 双人配对的「默契指数」只是一个好玩的参考，不代表两个人合不合适。"
         )

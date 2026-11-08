@@ -179,10 +179,14 @@ def _chips(d: ImageDraw.ImageDraw, words: list[str], y: int, pal: dict) -> int:
     return y + 58
 
 
-def _footer(d: ImageDraw.ImageDraw, pal: dict, site: str | None) -> None:
-    f = font(26)
-    text = "由 AI 生成，仅供娱乐" + (f"  ·  {site}" if site else "")
-    d.text((W // 2, H - 70), text, font=f, fill=(*_rgb(pal["text"]), 170), anchor="mm")
+def footer_text(source: str | None, site: str | None) -> str:
+    """分享图底部的一行字：只有 AI 写的报告才写「由 AI 生成」，资料库报告不能说是 AI 写的。"""
+    text = "由 AI 生成，仅供娱乐" if source == "ai" else "仅供娱乐参考"
+    return text + (f"  ·  {site}" if site else "")
+
+
+def _footer(d: ImageDraw.ImageDraw, pal: dict, text: str) -> None:
+    d.text((W // 2, H - 70), text, font=font(26), fill=(*_rgb(pal["text"]), 170), anchor="mm")
 
 
 def _to_png(img: Image.Image) -> bytes:
@@ -218,7 +222,7 @@ def _fit_bullets(items: list[str], width: int, avail_h: int, gap: int = 18):
     return f, lh, groups
 
 
-def _hug_and_footer(d: ImageDraw.ImageDraw, pal: dict, hug: str, panel_bottom: int, site: str | None) -> None:
+def _hug_and_footer(d: ImageDraw.ImageDraw, pal: dict, hug: str, panel_bottom: int, footer: str) -> None:
     f = font(32)
     lines = wrap("「" + hug + "」", f, W - 2 * MARGIN, max_lines=2)
     line_h = 48
@@ -227,7 +231,7 @@ def _hug_and_footer(d: ImageDraw.ImageDraw, pal: dict, hug: str, panel_bottom: i
     for line in lines:
         d.text((W // 2, y), line, font=f, fill=pal["accent"], anchor="mm")
         y += line_h
-    _footer(d, pal, site)
+    _footer(d, pal, footer)
 
 
 def single_card(report: dict, site: str | None = None) -> bytes:
@@ -259,7 +263,7 @@ def single_card(report: dict, site: str | None = None) -> bytes:
         d.text((MARGIN + 12, y), line, font=f, fill=pal["text"])
         y += lh
 
-    _hug_and_footer(d, pal, report["hug"], bottom, site)
+    _hug_and_footer(d, pal, report["hug"], bottom, footer_text(report.get("source"), site))
     return _to_png(img)
 
 
@@ -310,5 +314,5 @@ def pair_card(report: dict, site: str | None = None) -> bytes:
             y += lh
         y += gap
 
-    _hug_and_footer(d, pal, report["hug"], bottom, site)
+    _hug_and_footer(d, pal, report["hug"], bottom, footer_text(report.get("source"), site))
     return _to_png(img)
