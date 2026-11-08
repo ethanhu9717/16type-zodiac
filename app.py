@@ -10,6 +10,7 @@ import html
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Callable
 
 import streamlit as st
@@ -24,7 +25,9 @@ from core.llm import DEFAULT_BASE_URL, DEFAULT_MODEL, LLMConfig, key_looks_valid
 from core.pairing import Person
 from core.report import generate_pair, generate_single
 
-st.set_page_config(page_title="16 型人格 × 星座 · 温柔解读", page_icon="🌙", layout="centered")
+ICON = Path(__file__).parent / "assets" / "icon.png"  # 标签页图标（原创，scripts/make_icons.py 生成）
+st.set_page_config(page_title="16 型人格 × 星座 · 温柔解读", page_icon=str(ICON) if ICON.exists() else "🌙",
+                   layout="centered")
 
 TODAY = dt.date.today()
 MIN_DATE = dt.date(1930, 1, 1)
