@@ -1,0 +1,15 @@
+{
+  "name": "16type-zodiac-minitool",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fixtures": "../.venv/bin/python scripts/gen_fixtures.py",
+    "test": "node --test test/*.test.js",
+    "build": "node scripts/build.mjs",
+    "pack": "node scripts/pack.mjs",
+    "audit": "node scripts/audit.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
