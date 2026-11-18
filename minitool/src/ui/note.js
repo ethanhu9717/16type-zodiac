@@ -27,7 +27,7 @@ export function pairNote(report) {
   const content = [
     "你 " + report.a.label + "（" + report.a.nickname + "）",
     "TA " + report.b.label + "（" + report.b.nickname + "）",
-    report.title + " · 默契指数 " + report.score,
+    report.title + " · 娱乐配对指数 " + report.score,
     "根据资料库整理，仅供娱乐参考。",
   ].join("\n");
   return { title, content };

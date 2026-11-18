@@ -17,4 +17,6 @@ await esbuild.build({
 
 copyFileSync("index.html", "dist/index.html");
 copyFileSync("src/styles.css", "dist/style.css");
+mkdirSync("dist/fonts", { recursive: true });
+copyFileSync("fonts/aq-mark.woff2", "dist/fonts/aq-mark.woff2");
 console.log("built dist/");

@@ -40,7 +40,8 @@ for (const name of names) {
 }
 
 const html = readFileSync("dist/index.html", "utf8");
-if (html.indexOf("<script>") !== -1 || html.indexOf("<script ") !== -1 && html.indexOf('src="./app.js"') === -1) {
+const scriptSrcOk = html.indexOf('src="./app.js"') !== -1 || html.indexOf('src="./app.js?') !== -1;
+if (html.indexOf("<script>") !== -1 || (html.indexOf("<script ") !== -1 && !scriptSrcOk)) {
   console.error("ERROR inline or unexpected script");
   failed = true;
 }
